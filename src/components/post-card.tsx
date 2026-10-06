@@ -1,11 +1,12 @@
 // src/components/post-card.tsx
-// כרטיס פוסט בודד בפיד - כותרת, תגית קטגוריה, תוכן, שם קבוצה/מחבר, ותמונה (אם יש) -
-// מקביל ל-.post-card באתר (server/views/groups/show.ejs), רק כרכיב React Native
-import { Image, StyleSheet } from "react-native";
+// כרטיס פוסט בודד בפיד - מקביל ל-.post-card באתר (server/views/groups/show.ejs): תגית קטגוריה צבעונית,
+// כותרת ירוקה, שם קבוצה/מחבר, תוכן, ותמונה (אם יש) - בצבעי האתר
+import { Image, StyleSheet, View } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { Spacing } from "@/constants/theme";
+import { useTheme } from "@/hooks/use-theme";
 
 export type FeedPost = {
   id: string;
@@ -25,16 +26,32 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 export function PostCard({ post }: { post: FeedPost }) {
+  const theme = useTheme();
+
+  // צבעי התגית זהים ל-.post-category-* באתר: דבר תורה=כתום, שאלה=ירוק, עדכון/חג=ניטרלי
+  const badge =
+    post.category === "dvarTorah"
+      ? { backgroundColor: "rgba(201, 123, 60, 0.15)", color: theme.primaryDark, borderColor: "transparent" }
+      : post.category === "question"
+        ? { backgroundColor: "rgba(31, 111, 92, 0.15)", color: theme.secondary, borderColor: "transparent" }
+        : { backgroundColor: theme.background, color: theme.textSecondary, borderColor: theme.border };
+
   return (
-    <ThemedView type="backgroundElement" style={styles.card}>
-      <ThemedText type="smallBold" style={styles.category}>
-        {CATEGORY_LABELS[post.category] ?? post.category}
-      </ThemedText>
-      <ThemedText type="subtitle" style={styles.title}>
-        {post.title}
-      </ThemedText>
-      <ThemedText type="small" themeColor="textSecondary" style={styles.meta}>
-        {post.groupName} · {post.authorName}
+    <ThemedView type="backgroundElement" style={[styles.card, { borderColor: theme.border }]}>
+      <View style={styles.headerRow}>
+        <View style={[styles.badge, { backgroundColor: badge.backgroundColor, borderColor: badge.borderColor }]}>
+          <ThemedText style={[styles.badgeText, { color: badge.color }]}>
+            {CATEGORY_LABELS[post.category] ?? post.category}
+          </ThemedText>
+        </View>
+        <ThemedText type="small" themeColor="textSecondary">
+          {post.authorName}
+        </ThemedText>
+      </View>
+
+      <ThemedText style={[styles.title, { color: theme.secondary }]}>{post.title}</ThemedText>
+      <ThemedText type="small" themeColor="textSecondary" style={styles.group}>
+        👥 {post.groupName}
       </ThemedText>
       <ThemedText style={styles.content}>{post.content}</ThemedText>
 
@@ -48,28 +65,43 @@ export function PostCard({ post }: { post: FeedPost }) {
 const styles = StyleSheet.create({
   card: {
     borderRadius: 16,
+    borderWidth: 1,
     padding: Spacing.three,
-    gap: Spacing.one,
+    gap: Spacing.two,
     marginBottom: Spacing.three,
   },
-  category: {
-    color: "#2f8f5b",
-    textAlign: "right",
+  headerRow: {
+    flexDirection: "row-reverse",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  badge: {
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.half,
+  },
+  badgeText: {
+    fontSize: 12,
+    lineHeight: 20,
+    fontWeight: 700,
   },
   title: {
+    fontSize: 20,
+    lineHeight: 28,
+    fontWeight: 700,
     textAlign: "right",
   },
-  meta: {
+  group: {
     textAlign: "right",
   },
   content: {
     textAlign: "right",
-    marginTop: Spacing.one,
   },
   image: {
     width: "100%",
-    height: 180,
+    height: 190,
     borderRadius: 12,
-    marginTop: Spacing.two,
+    marginTop: Spacing.one,
   },
 });

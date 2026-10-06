@@ -7,20 +7,34 @@ import '@/global.css';
 
 import { Platform } from 'react-native';
 
+// פלטת הצבעים של חברותא - זהה בדיוק למשתני ה-CSS של האתר (server/public/css/style.css, :root ו-[data-theme="dark"]),
+// כדי שהאפליקציה והאתר ייראו כמשפחה אחת: כתום-חום חם (primary), ירוק-טורקיז (secondary), ורקע קרם.
+// השמות הישנים של התבנית (text/background/backgroundElement/backgroundSelected/textSecondary) נשארו
+// כדי שהרכיבים הקיימים (ThemedText/ThemedView) ימשיכו לעבוד, ונוספו שמות הצבעים של האתר.
 export const Colors = {
   light: {
-    text: '#000000',
-    background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
+    text: '#2b2620',
+    background: '#fbf7f1', // רקע קרם חם (--color-bg)
+    backgroundElement: '#ffffff', // כרטיסים (--color-surface)
+    backgroundSelected: '#f1e9dc',
+    textSecondary: '#6b6259', // --color-text-muted
+    border: '#e7dfd3',
+    primary: '#c97b3c',
+    primaryDark: '#a85f27',
+    secondary: '#1f6f5c',
+    secondaryDark: '#16503f',
   },
   dark: {
-    text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
+    text: '#f0ebe3',
+    background: '#1c1a17',
+    backgroundElement: '#2a2723',
+    backgroundSelected: '#423d36',
+    textSecondary: '#b5ac9e',
+    border: '#423d36',
+    primary: '#e08f4f',
+    primaryDark: '#c97b3c',
+    secondary: '#3fa38a',
+    secondaryDark: '#2c8a72',
   },
 } as const;
 
