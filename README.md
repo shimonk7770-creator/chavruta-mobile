@@ -1,56 +1,42 @@
-# Welcome to your Expo app 👋
+# חברותא - אפליקציית מובייל (React Native / Expo)
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+האפליקציה היא הלקוח הנייד של רשת "חברותא" (פרויקט מסכם בקורס פיתוח אפליקציות אינטרנטיות). היא **פרויקט נפרד** מהאתר
+(`chavruta-app`, Node/Express + Firebase Firestore) ומדברת איתו דרך ה-API שמתחת ל-`/api/mobile/*`, עם טוקן בכותרת
+`Authorization: Bearer <token>` (במקום session ועוגיות של הדפדפן).
 
-## Get started
+טכנולוגיות: Expo SDK 57, TypeScript, Expo Router (ניווט לפי קבצים), React Context להתחברות, `expo-secure-store` לשמירת ההתחברות.
 
-1. Install dependencies
+## מה כבר עובד
 
-   ```bash
-   npm install
-   ```
+- **התחברות** עם אותו אימייל וסיסמה כמו באתר. ההתחברות נשמרת בכספת המאובטחת של הטלפון, ולכן לא צריך להתחבר מחדש בכל פתיחה.
+- **פיד**: הפוסטים האחרונים מהקבוצות שאני חבר בהן.
+- **קבוצות**: רשימה עם חיפוש וסינון "הקבוצות שלי", ועמוד קבוצה עם חברים, הצטרפות/עזיבה, פרסום פוסט,
+  תגובות, מחיקה (למי שמורשה), ושאלות וסיכומים מה-AI (Gemini דרך השרת - המפתח לעולם לא נמצא בטלפון).
+- **חשבון**: פרטי המשתמש והתנתקות.
+- מעגל השנה והודעות עדיין מסומנים "בקרוב" ויועברו בשלבים הבאים.
 
-2. Start the app
+## הרצה
 
-   ```bash
-   npx expo start
-   ```
+1. בשרת (`chavruta-app`): `npm run dev`
+2. באפליקציה (`chavruta-mobile`), פעם אחת: `npm install` ואז `npx expo install expo-secure-store`
+3. לעדכן ב-`src/constants/api.ts` את כתובת ה-IP של המחשב (הפקודה `ipconfig`, שורת IPv4 של ה-Wi-Fi). הטלפון והמחשב חייבים להיות באותה רשת.
+4. `npx expo start` וסריקת ה-QR עם Expo Go. אחרי הוספת מסך חדש כדאי להפעיל מחדש את הפקודה, כדי שהניווט המוקלד יתעדכן.
 
-In the output, you'll find options to open the app in a
+בדיקת טיפוסים: `npx tsc --noEmit`
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## מבנה הקוד (`src/`)
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+| תיקייה | תפקיד |
+| --- | --- |
+| `app/` | המסכים (כל קובץ הוא מסך): `index` (פיד), `groups`, `group/[id]`, `explore` (חשבון) |
+| `components/` | רכיבי תצוגה: כרטיסי קבוצה ופוסט, טופס פוסט חדש, תיבת AI, טופס התחברות |
+| `contexts/auth-context.tsx` | מצב ההתחברות (טוקן + משתמש), שחזור מהכספת, ו-`authedFetch` שמתנתק אוטומטית על 401 |
+| `lib/` | `api.ts` (קריאה אחידה לשרת עם הודעות שגיאה בעברית), `session-storage.ts` (הכספת) |
+| `types/chavruta.ts` | טיפוסי הנתונים שמגיעים מהשרת |
+| `constants/` | `theme.ts` (פלטת הצבעים של האתר), `api.ts` (כתובת השרת) |
 
-## Get a fresh project
+## אבטחה
 
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-### Other setup steps
-
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- ההרשאות (מי רשאי לפרסם, למחוק, לעזוב) נאכפות **בשרת**. האפליקציה רק מסתירה כפתורים לפי שדות כמו `canDelete`.
+- הטוקן נשמר ב-Keychain (iOS) / Keystore (Android) ולא בקובץ רגיל, ומתבטל גם בשרת בהתנתקות.
+- הטוקן בשרת ללא תפוגה אוטומטית - מספיק לפרויקט לימודי (מתועד ב-`server/models/MobileToken.js` של האתר).

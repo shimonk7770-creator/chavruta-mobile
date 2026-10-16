@@ -1,52 +1,58 @@
 // src/app/index.tsx - טאב "פיד" - אם לא מחוברים, מציג טופס התחברות; אם כן, מציג את פיד הפוסטים
 // האישי (מקביל ל-GET /feed באתר, רק דרך GET /api/mobile/feed עם טוקן - server/controllers/mobileController.js)
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from "react-native";
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, TouchableOpacity, View } from "react-native";
 
 import { LoginForm } from "@/components/login-form";
 import { type FeedPost, PostCard } from "@/components/post-card";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { API_BASE_URL } from "@/constants/api";
 import { Spacing } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import { useTheme } from "@/hooks/use-theme";
 
 export default function FeedScreen() {
-  const { token } = useAuth();
+  const { token, isRestoring } = useAuth();
+  const theme = useTheme();
+
+  // בזמן ששוחזרת התחברות שמורה (מהכספת של הטלפון) לא מציגים את טופס ההתחברות, כדי שלא יהבהב לרגע
+  if (isRestoring) {
+    return (
+      <ThemedView style={styles.center}>
+        <ActivityIndicator size="large" color={theme.primary} />
+      </ThemedView>
+    );
+  }
 
   if (!token) {
     return <LoginForm />;
   }
 
-  return <Feed token={token} />;
+  return <Feed />;
 }
 
-function Feed({ token }: { token: string }) {
-  const { user } = useAuth();
+function Feed() {
+  const { user, authedFetch } = useAuth();
   const theme = useTheme();
   const [posts, setPosts] = useState<FeedPost[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  // שתי לשוניות כמו באתר: "שלי" (הקבוצות שלי) / "הקהילה" (כל הפוסטים האחרונים בבית חב״ד)
+  const [tab, setTab] = useState<"mine" | "community">("mine");
 
+  // authedFetch מוסיפה את הטוקן, ואם השרת עונה 401 (טוקן שפג) מנקה את ההתחברות ומחזירה למסך ההתחברות
   const loadFeed = useCallback(async () => {
     setError(null);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/mobile/feed`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setError(data.message || "שגיאה בטעינת הפיד");
-        return;
-      }
+      const data = await authedFetch<{ posts: FeedPost[] }>(`/api/mobile/feed?tab=${tab}`);
       setPosts(data.posts);
     } catch (e) {
-      setError("לא ניתן להתחבר לשרת");
+      setError(e instanceof Error ? e.message : "שגיאה בטעינת הפיד");
     }
-  }, [token]);
+  }, [authedFetch, tab]);
 
   useEffect(() => {
+    setPosts(null); // בהחלפת לשונית מציגים טעינה במקום הפוסטים של הלשונית הקודמת
     loadFeed();
   }, [loadFeed]);
 
@@ -68,9 +74,17 @@ function Feed({ token }: { token: string }) {
     return (
       <ThemedView style={styles.center}>
         <ThemedText style={styles.errorText}>{error}</ThemedText>
+        <TouchableOpacity onPress={loadFeed} style={styles.retry}>
+          <ThemedText type="small">נסה שוב</ThemedText>
+        </TouchableOpacity>
       </ThemedView>
     );
   }
+
+  const chip = (selected: boolean) => [
+    styles.chip,
+    { borderColor: selected ? theme.secondary : theme.border, backgroundColor: selected ? theme.secondary : theme.backgroundElement },
+  ];
 
   return (
     <ThemedView style={styles.screen}>
@@ -82,12 +96,28 @@ function Feed({ token }: { token: string }) {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} />
         }
-        ListEmptyComponent={<ThemedText style={styles.empty}>אין עדיין פוסטים בקבוצות שלך</ThemedText>}
+        ListEmptyComponent={
+          <ThemedText style={styles.empty}>{tab === "mine" ? "אין עדיין פוסטים בקבוצות שלך. הצטרף למדור בבית חב״ד!" : "עדיין לא פורסמו פוסטים"}</ThemedText>
+        }
         ListHeaderComponent={
           // כרטיס ברכה ירוק בראש הפיד - כמו ה-hero באתר
           <View style={[styles.hero, { backgroundColor: theme.secondary }]}>
             <ThemedText style={styles.heroTitle}>שלום{user ? `, ${user.fullName}` : ""} 👋</ThemedText>
-            <ThemedText style={styles.heroSubtitle}>הפוסטים האחרונים מהקבוצות שלך</ThemedText>
+            <ThemedText style={styles.heroSubtitle}>
+              {tab === "mine" ? "הפוסטים האחרונים מהקבוצות שלך" : "כל מה שקורה עכשיו בבית חב״ד"}
+            </ThemedText>
+            <View style={styles.chips}>
+              <TouchableOpacity style={chip(tab === "mine")} onPress={() => setTab("mine")}>
+                <ThemedText type="small" style={{ color: tab === "mine" ? "#ffffff" : theme.text }}>
+                  👤 שלי
+                </ThemedText>
+              </TouchableOpacity>
+              <TouchableOpacity style={chip(tab === "community")} onPress={() => setTab("community")}>
+                <ThemedText type="small" style={{ color: tab === "community" ? "#ffffff" : theme.text }}>
+                  🌍 הקהילה
+                </ThemedText>
+              </TouchableOpacity>
+            </View>
           </View>
         }
       />
@@ -122,6 +152,21 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     opacity: 0.9,
     textAlign: "center",
+  },
+  chips: {
+    flexDirection: "row-reverse",
+    gap: Spacing.two,
+    marginTop: Spacing.two,
+  },
+  chip: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.one + 2,
+  },
+  retry: {
+    marginTop: Spacing.three,
+    padding: Spacing.two,
   },
   center: {
     flex: 1,

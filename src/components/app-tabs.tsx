@@ -1,14 +1,28 @@
 // src/components/app-tabs.tsx - ניווט תחתון ראשי של האפליקציה (כל אזורי האתר: פיד, קבוצות, מעגל השנה, הודעות, חשבון)
 // עברנו מ-NativeTabs (שדורש קובץ תמונת אייקון נפרד לכל טאב) ל-Tabs הרגיל של expo-router:
 // כך אפשר להשתמש באימוג'י כאייקונים (בדיוק כמו באתר) ולשלוט בצבעים לפי פלטת חברותא.
-import { Tabs } from 'expo-router';
-import { Text, useColorScheme } from 'react-native';
+import { Tabs, useRouter } from 'expo-router';
+import { Text, TouchableOpacity, useColorScheme } from 'react-native';
 
 import { Colors } from '@/constants/theme';
 
 function TabEmoji({ emoji, focused }: { emoji: string; focused: boolean }) {
   // טאב לא פעיל מעומעם מעט, כדי שהפעיל יבלוט
   return <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.5 }}>{emoji}</Text>;
+}
+
+// כפתור "חזרה" בכותרת של מסכים שמוסתרים מסרגל הטאבים (כמו עמוד קבוצה). ב-Tabs אין כפתור חזרה אוטומטי.
+// אם אין לאן לחזור (למשל נכנסנו ישירות בקישור) - עוברים לרשימת הקבוצות.
+function BackButton() {
+  const router = useRouter();
+  return (
+    <TouchableOpacity
+      onPress={() => (router.canGoBack() ? router.back() : router.replace('/groups'))}
+      hitSlop={12}
+      style={{ paddingHorizontal: 16 }}>
+      <Text style={{ color: '#ffffff', fontSize: 17, fontWeight: '600' }}>‹ חזרה</Text>
+    </TouchableOpacity>
+  );
 }
 
 export default function AppTabs() {
@@ -43,6 +57,16 @@ export default function AppTabs() {
           title: 'קבוצות',
           headerTitle: 'קבוצות',
           tabBarIcon: ({ focused }) => <TabEmoji emoji="👥" focused={focused} />,
+        }}
+      />
+      {/* עמוד קבוצה בודדת - href:null מסתיר אותו מסרגל הטאבים, והוא נפתח מרשימת הקבוצות */}
+      <Tabs.Screen
+        name="group/[id]"
+        options={{
+          href: null,
+          title: 'קבוצה',
+          headerTitle: 'קבוצה',
+          headerLeft: () => <BackButton />,
         }}
       />
       <Tabs.Screen
