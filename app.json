@@ -3,12 +3,17 @@
     "name": "חברותא",
     "slug": "chavruta-mobile",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "chavrutamobile",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "המיקום משמש לחישוב זמני היום, כיוון התפילה ומניינים קרובים.",
+        "NSMicrophoneUsageDescription": "המיקרופון משמש להקלטה קולית של פוסטים.",
+        "NSPhotoLibraryUsageDescription": "הגישה לגלריה משמשת לצירוף תמונות ווידאו לפוסטים."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -17,11 +22,18 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "RECORD_AUDIO",
+        "CAMERA"
+      ]
     },
     "web": {
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "output": "single",
+      "favicon": "./assets/images/favicon.png",
+      "bundler": "metro"
     },
     "plugins": [
       "expo-router",
@@ -34,11 +46,25 @@
         }
       ],
       "expo-secure-store",
-      "expo-audio"
+      "expo-audio",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "הגישה לגלריה משמשת לצירוף תמונות ווידאו."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "המיקום משמש לזמני היום, כיוון התפילה ומניינים קרובים."
+        }
+      ],
+      "expo-video"
     ],
     "experiments": {
-      "typedRoutes": true,
-      "reactCompiler": true
+      "typedRoutes": false,
+      "reactCompiler": true,
+      "baseUrl": "/app"
     }
   }
 }

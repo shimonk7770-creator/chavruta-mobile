@@ -40,3 +40,9 @@
 - ההרשאות (מי רשאי לפרסם, למחוק, לעזוב) נאכפות **בשרת**. האפליקציה רק מסתירה כפתורים לפי שדות כמו `canDelete`.
 - הטוקן נשמר ב-Keychain (iOS) / Keystore (Android) ולא בקובץ רגיל, ומתבטל גם בשרת בהתנתקות.
 - הטוקן בשרת ללא תפוגה אוטומטית - מספיק לפרויקט לימודי (מתועד ב-`server/models/MobileToken.js` של האתר).
+
+## הרצה ופריסה
+- `npm install` ואז `npx expo start` (סריקה ב-Expo Go) או `npm run web`.
+- `npm run export:web` - בונה את גרסת הדפדפן לתוך `../chavruta-app/server/public/app` (מוגשת מהשרת ב-`/app`).
+- `npm run update` - מפרסם עדכון ל-Expo Go בענן (דורש `eas login` ו-`.env` עם `EXPO_PUBLIC_API_URL`).
+- הוראות מלאות: `../chavruta-app/DEPLOY.md`.

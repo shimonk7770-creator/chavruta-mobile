@@ -3,15 +3,18 @@
 // תגית קטגוריה, כותרת, תוכן, גלריית תמונות, ומתחת שלוש פעולות: 💬 תגובות (נפתחות במקום, ללא מסך נוסף),
 // ✨ AI (סיכום + שאלה על הפוסט) ו-🗑️ מחיקה (רק למי שמורשה - השרת קובע ושולח canDelete).
 import { useState } from "react";
-import { ActivityIndicator, Alert, Image, ScrollView, Share, StyleSheet, TextInput, TouchableOpacity, View } from "react-native";
+import { useRouter } from "expo-router";
+import { ActivityIndicator, Image, ScrollView, Share, StyleSheet, TextInput, TouchableOpacity, View } from "react-native";
 
 import { AiAnswerBox, AiAskRow, useAi } from "@/components/ai-box";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { VoiceButton } from "@/components/voice-button";
-import { API_BASE_URL } from "@/constants/api";
+import { PostVideo } from "@/components/post-video";
+import { API_BASE_URL, resolveUrl } from "@/constants/api";
 import { Spacing } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
+import { Alert } from "@/lib/alert";
 import { useTheme } from "@/hooks/use-theme";
 import type { GroupPost, PostComment } from "@/types/chavruta";
 
@@ -34,6 +37,7 @@ function formatDate(iso: string): string {
 
 export function GroupPostCard({ post, onDeleted }: { post: GroupPost; onDeleted: (postId: string) => void }) {
   const theme = useTheme();
+  const router = useRouter();
   const { authedFetch, user } = useAuth();
 
   // --- תגובות ---
@@ -114,7 +118,7 @@ export function GroupPostCard({ post, onDeleted }: { post: GroupPost; onDeleted:
   async function sharePost() {
     try {
       const snippet = post.content.length > 160 ? `${post.content.slice(0, 160)}...` : post.content;
-      await Share.share({ message: `${post.title}\n${snippet}\n${API_BASE_URL}/groups/${post.groupId}#post-${post.id}` });
+      await Share.share({ message: `${post.title}\n${snippet}\n${API_BASE_URL}/app/group/${post.groupId}` });
     } catch {
       // המשתמש ביטל או שהשיתוף לא נתמך - אין מה לעשות
     }
@@ -201,10 +205,12 @@ export function GroupPostCard({ post, onDeleted }: { post: GroupPost; onDeleted:
       {post.imageUrls.length > 0 ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.gallery}>
           {post.imageUrls.map((url) => (
-            <Image key={url} source={{ uri: url }} style={styles.image} resizeMode="cover" />
+            <Image key={url} source={{ uri: resolveUrl(url) }} style={styles.image} resizeMode="cover" />
           ))}
         </ScrollView>
       ) : null}
+
+      {post.videoUrl ? <PostVideo url={resolveUrl(post.videoUrl)} /> : null}
 
       {/* שורת הפעולות */}
       <View style={styles.actionsRow}>
@@ -225,6 +231,11 @@ export function GroupPostCard({ post, onDeleted }: { post: GroupPost; onDeleted:
         {post.authorId !== user?.id ? (
           <TouchableOpacity style={actionStyle} onPress={() => reportContent("post", post.id)}>
             <ThemedText type="small">🚩 דווח</ThemedText>
+          </TouchableOpacity>
+        ) : null}
+        {post.canDelete ? (
+          <TouchableOpacity style={actionStyle} onPress={() => router.push(`/post-edit?id=${post.id}` as never)}>
+            <ThemedText type="small">✏️ עריכה</ThemedText>
           </TouchableOpacity>
         ) : null}
         {post.canDelete ? (

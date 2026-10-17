@@ -1,19 +1,23 @@
 // src/app/group/[id].tsx - עמוד קבוצה בודדת: פרטים, חברים, הצטרפות/עזיבה, שאלה ל-AI על הקבוצה,
 // פרסום פוסט חדש, ורשימת הפוסטים (עם תגובות ו-AI לכל פוסט). מקביל ל-server/views/groups/show.ejs באתר,
 // דרך GET /api/mobile/groups/:id. המסך הזה מוסתר מסרגל הטאבים (components/app-tabs.tsx) ונפתח מרשימת הקבוצות.
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Alert, FlatList, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, FlatList, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 
 import { AiAskRow } from "@/components/ai-box";
+import { GroupManagerTools } from "@/components/group-manager-tools";
 import { GroupAvatar } from "@/components/group-card";
 import { GroupPostCard } from "@/components/group-post-card";
 import { LoginForm } from "@/components/login-form";
 import { NewPostForm } from "@/components/new-post-form";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { resolveUrl } from "@/constants/api";
 import { Spacing } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
+import { useResponsive } from "@/hooks/use-responsive";
+import { Alert } from "@/lib/alert";
 import { useTheme } from "@/hooks/use-theme";
 import type { Group, GroupMember, GroupPost } from "@/types/chavruta";
 
@@ -40,7 +44,9 @@ export default function GroupScreen() {
 function GroupDetails() {
   const theme = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { authedFetch } = useAuth();
+  const router = useRouter();
+  const { authedFetch, isAdmin } = useAuth();
+  const { contentMaxWidth } = useResponsive();
   const [group, setGroup] = useState<Group | null>(null);
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [posts, setPosts] = useState<GroupPost[]>([]);
@@ -129,6 +135,15 @@ function GroupDetails() {
         </TouchableOpacity>
       )}
 
+      {/* צ'אט הקבוצה (חברים בלבד) */}
+      {group.isMember || group.isManager ? (
+        <TouchableOpacity style={[styles.outlineButton, { borderColor: theme.secondary }]} onPress={() => router.push(`/group-chat?id=${group.id}` as never)}>
+          <ThemedText style={{ color: theme.secondary, fontWeight: 700 }}>💬 צ'אט הקבוצה</ThemedText>
+        </TouchableOpacity>
+      ) : null}
+
+      {(group.isManager || isAdmin) ? <GroupManagerTools groupId={group.id} members={members} onChanged={load} /> : null}
+
       {/* חברי הקבוצה */}
       <ThemedText type="smallBold" style={styles.sectionTitle}>
         חברי הקבוצה
@@ -137,7 +152,7 @@ function GroupDetails() {
         {members.map((m) => (
           <View key={m.id} style={styles.member}>
             {m.avatarUrl ? (
-              <Image source={{ uri: m.avatarUrl }} style={styles.memberAvatar} />
+              <Image source={{ uri: resolveUrl(m.avatarUrl) }} style={styles.memberAvatar} />
             ) : (
               <View style={[styles.memberAvatar, styles.memberFallback, { backgroundColor: theme.secondary }]}>
                 <ThemedText style={styles.memberLetter}>{(m.fullName || "?").trim().charAt(0)}</ThemedText>
@@ -163,7 +178,7 @@ function GroupDetails() {
         <AiAskRow askPath={`/api/mobile/ai/groups/${group.id}/ask`} placeholder="למשל: על מה למדנו לאחרונה?" />
       </ThemedView>
 
-      {group.isMember ? <NewPostForm groupId={group.id} onPosted={(p) => setPosts((prev) => [p, ...prev])} /> : null}
+      {group.isMember ? <NewPostForm groupId={group.id} onPosted={(p, needsReload) => (needsReload ? load() : setPosts((prev) => [p, ...prev]))} /> : null}
 
       <ThemedText type="smallBold" style={styles.sectionTitle}>
         פוסטים בקבוצה
@@ -184,7 +199,7 @@ function GroupDetails() {
               עדיין אין פוסטים בקבוצה
             </ThemedText>
           }
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { maxWidth: contentMaxWidth, width: "100%", alignSelf: "center" }]}
           keyboardShouldPersistTaps="handled"
         />
       </ThemedView>

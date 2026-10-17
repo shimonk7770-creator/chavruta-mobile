@@ -10,6 +10,7 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { Spacing } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
+import { useResponsive } from "@/hooks/use-responsive";
 import { useTheme } from "@/hooks/use-theme";
 import type { Group } from "@/types/chavruta";
 
@@ -32,7 +33,8 @@ export default function GroupsScreen() {
 function GroupsList() {
   const theme = useTheme();
   const router = useRouter();
-  const { authedFetch } = useAuth();
+  const { authedFetch, isAdmin } = useAuth();
+  const { columns, contentMaxWidth } = useResponsive();
   const [groups, setGroups] = useState<Group[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -88,18 +90,28 @@ function GroupsList() {
   return (
     <ThemedView style={styles.screen}>
       <FlatList
+        key={columns}
+        numColumns={columns}
+        columnWrapperStyle={columns > 1 ? { gap: Spacing.three } : undefined}
         data={visible}
         keyExtractor={(g) => g.id}
         renderItem={({ item }) => (
-          <GroupCard group={item} onPress={() => router.push({ pathname: "/group/[id]", params: { id: item.id } })} />
+          <View style={{ flex: 1 }}>
+            <GroupCard group={item} onPress={() => router.push({ pathname: "/group/[id]", params: { id: item.id } })} />
+          </View>
         )}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { maxWidth: contentMaxWidth, width: "100%", alignSelf: "center" }]}
         keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} />}
         ListHeaderComponent={
           <View style={styles.header}>
             {/* משוב המרצה: הכל מרוכז תחת "בית חב״ד" - המדורים הקבועים מופיעים ראשונים (השרת מסדר אותם) */}
             <ThemedText style={[styles.title, { color: theme.secondary }]}>🕍 בית חב״ד</ThemedText>
+            {isAdmin ? (
+              <TouchableOpacity style={[styles.chip, { borderColor: theme.primary, backgroundColor: theme.primary, alignSelf: "flex-end" }]} onPress={() => router.push("/group-new" as never)}>
+                <ThemedText type="small" style={{ color: "#ffffff" }}>+ קבוצה חדשה</ThemedText>
+              </TouchableOpacity>
+            ) : null}
             <TextInput
               style={[styles.search, { backgroundColor: theme.backgroundElement, borderColor: theme.border, color: theme.text }]}
               placeholder="חיפוש קבוצה לפי שם או נושא..."

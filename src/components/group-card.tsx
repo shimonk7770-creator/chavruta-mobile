@@ -5,6 +5,7 @@ import { Image, StyleSheet, TouchableOpacity, View } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { resolveUrl } from "@/constants/api";
 import { Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import type { Group } from "@/types/chavruta";
@@ -13,7 +14,7 @@ export function GroupAvatar({ group, size }: { group: Pick<Group, "name" | "grou
   const theme = useTheme();
   const shape = { width: size, height: size, borderRadius: size / 2 };
   if (group.groupPhotoUrl) {
-    return <Image source={{ uri: group.groupPhotoUrl }} style={shape} />;
+    return <Image source={{ uri: resolveUrl(group.groupPhotoUrl) }} style={shape} />;
   }
   // מדור של בית חב״ד מציג את האימוג'י שלו במקום האות הראשונה
   const symbol = group.emoji || (group.name || "?").trim().charAt(0);

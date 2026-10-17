@@ -1,186 +1,100 @@
-// src/app/index.tsx - טאב "פיד" - אם לא מחוברים, מציג טופס התחברות; אם כן, מציג את פיד הפוסטים
-// האישי (מקביל ל-GET /feed באתר, רק דרך GET /api/mobile/feed עם טוקן - server/controllers/mobileController.js)
-import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, TouchableOpacity, View } from "react-native";
+// src/app/index.tsx - מסך הבית: כמו דף הבית באתר - זמני שבת, שורת סטטוסים, וקיצורי דרך לכל אזורי האתר.
+// הנתונים מגיעים מ-GET / של האתר (pageRoutes.js) דרך הגשר: { shabbat, statusFeed, myActiveStatusCount }.
+import { useRouter } from "expo-router";
+import { Linking, Pressable, ScrollView, View } from "react-native";
 
-import { LoginForm } from "@/components/login-form";
-import { type FeedPost, PostCard } from "@/components/post-card";
+import { Avatar, Banner, Btn, Card, ErrorView, Grid, H2, Hero, Loading, Muted, Row, Screen } from "@/components/kit";
 import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
+import { SECTIONS } from "@/constants/sections";
 import { Spacing } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
+import { useLoad } from "@/hooks/use-load";
 import { useTheme } from "@/hooks/use-theme";
 
-export default function FeedScreen() {
-  const { token, isRestoring } = useAuth();
+type Shabbat = { cityHe: string; parashaHe?: string; candleLighting?: string; havdalah?: string; upcoming?: string[] };
+type StatusEntry = { userId: string; userName: string; avatarUrl?: string; seenByMe?: boolean };
+type HomeData = { shabbat: Shabbat | null; statusFeed: StatusEntry[]; myActiveStatusCount: number };
+
+const INSPIRATION_VIDEO = "https://www.youtube.com/watch?v=ormF3yMohnI"; // אותו סרטון "רגע של השראה" כמו באתר
+
+export default function HomeScreen() {
+  const router = useRouter();
   const theme = useTheme();
+  const { web, user, token, isRestoring, isAdmin } = useAuth();
+  const { data, error, loading, refresh, refreshing, reload } = useLoad(
+    async () => (await web.get<HomeData>("/")).data,
+    [token]
+  );
 
-  // בזמן ששוחזרת התחברות שמורה (מהכספת של הטלפון) לא מציגים את טופס ההתחברות, כדי שלא יהבהב לרגע
-  if (isRestoring) {
-    return (
-      <ThemedView style={styles.center}>
-        <ActivityIndicator size="large" color={theme.primary} />
-      </ThemedView>
-    );
-  }
+  if (isRestoring || (loading && !data)) return <Loading />;
+  if (error && !data) return <ErrorView message={error} onRetry={reload} />;
 
-  if (!token) {
-    return <LoginForm />;
-  }
-
-  return <Feed />;
-}
-
-function Feed() {
-  const { user, authedFetch } = useAuth();
-  const theme = useTheme();
-  const [posts, setPosts] = useState<FeedPost[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-  // שתי לשוניות כמו באתר: "שלי" (הקבוצות שלי) / "הקהילה" (כל הפוסטים האחרונים בבית חב״ד)
-  const [tab, setTab] = useState<"mine" | "community">("mine");
-
-  // authedFetch מוסיפה את הטוקן, ואם השרת עונה 401 (טוקן שפג) מנקה את ההתחברות ומחזירה למסך ההתחברות
-  const loadFeed = useCallback(async () => {
-    setError(null);
-    try {
-      const data = await authedFetch<{ posts: FeedPost[] }>(`/api/mobile/feed?tab=${tab}`);
-      setPosts(data.posts);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "שגיאה בטעינת הפיד");
-    }
-  }, [authedFetch, tab]);
-
-  useEffect(() => {
-    setPosts(null); // בהחלפת לשונית מציגים טעינה במקום הפוסטים של הלשונית הקודמת
-    loadFeed();
-  }, [loadFeed]);
-
-  async function onRefresh() {
-    setRefreshing(true);
-    await loadFeed();
-    setRefreshing(false);
-  }
-
-  if (posts === null && !error) {
-    return (
-      <ThemedView style={styles.center}>
-        <ActivityIndicator size="large" color={theme.primary} />
-      </ThemedView>
-    );
-  }
-
-  if (error) {
-    return (
-      <ThemedView style={styles.center}>
-        <ThemedText style={styles.errorText}>{error}</ThemedText>
-        <TouchableOpacity onPress={loadFeed} style={styles.retry}>
-          <ThemedText type="small">נסה שוב</ThemedText>
-        </TouchableOpacity>
-      </ThemedView>
-    );
-  }
-
-  const chip = (selected: boolean) => [
-    styles.chip,
-    { borderColor: selected ? theme.secondary : theme.border, backgroundColor: selected ? theme.secondary : theme.backgroundElement },
-  ];
+  const go = (path: string) => router.push(path as never);
+  const shabbat = data?.shabbat;
+  const quick = SECTIONS.filter((s) => !["index", "feed", "profile"].includes(s.route) && (!s.adminOnly || isAdmin) && (!s.needsLogin || token));
 
   return (
-    <ThemedView style={styles.screen}>
-      <FlatList
-        data={posts ?? []}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <PostCard post={item} />}
-        contentContainerStyle={styles.list}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} />
-        }
-        ListEmptyComponent={
-          <ThemedText style={styles.empty}>{tab === "mine" ? "אין עדיין פוסטים בקבוצות שלך. הצטרף למדור בבית חב״ד!" : "עדיין לא פורסמו פוסטים"}</ThemedText>
-        }
-        ListHeaderComponent={
-          // כרטיס ברכה ירוק בראש הפיד - כמו ה-hero באתר
-          <View style={[styles.hero, { backgroundColor: theme.secondary }]}>
-            <ThemedText style={styles.heroTitle}>שלום{user ? `, ${user.fullName}` : ""} 👋</ThemedText>
-            <ThemedText style={styles.heroSubtitle}>
-              {tab === "mine" ? "הפוסטים האחרונים מהקבוצות שלך" : "כל מה שקורה עכשיו בבית חב״ד"}
-            </ThemedText>
-            <View style={styles.chips}>
-              <TouchableOpacity style={chip(tab === "mine")} onPress={() => setTab("mine")}>
-                <ThemedText type="small" style={{ color: tab === "mine" ? "#ffffff" : theme.text }}>
-                  👤 שלי
-                </ThemedText>
-              </TouchableOpacity>
-              <TouchableOpacity style={chip(tab === "community")} onPress={() => setTab("community")}>
-                <ThemedText type="small" style={{ color: tab === "community" ? "#ffffff" : theme.text }}>
-                  🌍 הקהילה
-                </ThemedText>
-              </TouchableOpacity>
+    <Screen onRefresh={refresh} refreshing={refreshing}>
+      <Hero title={user ? `שלום, ${user.fullName} 👋` : 'ברוכים הבאים ל"חברותא"'} subtitle="רשת חברתית קהילתית - שיעורים, קבוצות לימוד, דברי תורה, מעקב התקדמות וחיבור קהילתי.">
+        {!token ? <Btn title="הצטרפו עכשיו" variant="primary" onPress={() => go("/login")} style={{ marginTop: Spacing.two }} /> : null}
+      </Hero>
+
+      {token ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: "row-reverse", gap: Spacing.three, paddingVertical: Spacing.one }}>
+          <Pressable onPress={() => go(data && data.myActiveStatusCount > 0 ? `/status-view?userId=${user?.id}` : "/status-new")} style={{ alignItems: "center", width: 68 }}>
+            <View style={{ borderWidth: 3, borderColor: data && data.myActiveStatusCount > 0 ? theme.primary : theme.border, borderRadius: 40, padding: 2 }}>
+              <Avatar name={user?.fullName} url={user?.avatarUrl} size={54} />
             </View>
-          </View>
-        }
-      />
-    </ThemedView>
+            <ThemedText type="small" numberOfLines={1}>{data && data.myActiveStatusCount > 0 ? "הסטטוס שלי" : "＋ הוספה"}</ThemedText>
+          </Pressable>
+          {(data?.statusFeed ?? []).map((s) => (
+            <Pressable key={s.userId} onPress={() => go(`/status-view?userId=${s.userId}`)} style={{ alignItems: "center", width: 68 }}>
+              <View style={{ borderWidth: 3, borderColor: s.seenByMe ? theme.border : theme.secondary, borderRadius: 40, padding: 2 }}>
+                <Avatar name={s.userName} url={s.avatarUrl} size={54} />
+              </View>
+              <ThemedText type="small" numberOfLines={1}>{s.userName}</ThemedText>
+            </Pressable>
+          ))}
+        </ScrollView>
+      ) : null}
+
+      {shabbat ? (
+        <Card style={{ borderColor: theme.secondary }}>
+          <Row style={{ justifyContent: "space-between" }}>
+            <Muted>📍 {shabbat.cityHe}</Muted>
+            <Muted>{token ? "לשינוי עיר - בפרופיל" : "להתאמת עיר - הרשמה"}</Muted>
+          </Row>
+          <H2>שבת שלום{shabbat.parashaHe ? ` - פרשת ${shabbat.parashaHe}` : ""}</H2>
+          <Row style={{ gap: Spacing.three }}>
+            <View style={{ flex: 1, backgroundColor: "rgba(31,111,92,0.14)", borderRadius: 14, padding: Spacing.three }}>
+              <Muted>הדלקת נרות</Muted>
+              <ThemedText style={{ fontSize: 24, fontWeight: "700", textAlign: "right" }}>{shabbat.candleLighting || "—"}</ThemedText>
+            </View>
+            <View style={{ flex: 1, backgroundColor: "rgba(201,123,60,0.18)", borderRadius: 14, padding: Spacing.three }}>
+              <Muted>צאת השבת</Muted>
+              <ThemedText style={{ fontSize: 24, fontWeight: "700", textAlign: "right" }}>{shabbat.havdalah || "—"}</ThemedText>
+            </View>
+          </Row>
+          {shabbat.upcoming && shabbat.upcoming.length ? <Muted>בקרוב: {shabbat.upcoming.join(" · ")}</Muted> : null}
+        </Card>
+      ) : null}
+
+      <Card onPress={() => Linking.openURL(INSPIRATION_VIDEO)}>
+        <H2>רגע של השראה</H2>
+        <Muted>▶ לצפייה בסרטון ההשראה של חברותא</Muted>
+      </Card>
+
+      {error ? <Banner kind="error" text={error} /> : null}
+      <H2>כל האזורים</H2>
+      <Grid>
+        {quick.map((s) => (
+          <Card key={s.route} onPress={() => go(`/${s.route}`)} style={{ minHeight: 96 }}>
+            <ThemedText style={{ fontSize: 28, lineHeight: 36, textAlign: "right" }}>{s.emoji}</ThemedText>
+            <ThemedText style={{ fontWeight: "700", textAlign: "right" }}>{s.title}</ThemedText>
+            <Muted>{s.description}</Muted>
+          </Card>
+        ))}
+      </Grid>
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
-  list: {
-    padding: Spacing.three,
-    paddingBottom: Spacing.five,
-  },
-  hero: {
-    borderRadius: 20,
-    paddingVertical: Spacing.four,
-    paddingHorizontal: Spacing.four,
-    marginBottom: Spacing.three,
-    alignItems: "center",
-    gap: Spacing.one,
-  },
-  heroTitle: {
-    color: "#ffffff",
-    fontSize: 22,
-    lineHeight: 30,
-    fontWeight: 700,
-    textAlign: "center",
-  },
-  heroSubtitle: {
-    color: "#ffffff",
-    opacity: 0.9,
-    textAlign: "center",
-  },
-  chips: {
-    flexDirection: "row-reverse",
-    gap: Spacing.two,
-    marginTop: Spacing.two,
-  },
-  chip: {
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.one + 2,
-  },
-  retry: {
-    marginTop: Spacing.three,
-    padding: Spacing.two,
-  },
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  errorText: {
-    textAlign: "center",
-    paddingHorizontal: Spacing.four,
-    color: "#c0392b",
-  },
-  empty: {
-    textAlign: "center",
-    marginTop: Spacing.five,
-    opacity: 0.6,
-  },
-});

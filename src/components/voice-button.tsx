@@ -4,11 +4,12 @@
 // חשוב: expo-audio נטען בצורה "זהירה" (require בתוך try) - אם החבילה עדיין לא הותקנה האפליקציה לא קורסת,
 // והכפתור פשוט מציג הודעה מה צריך להתקין. כך מסך ה"Something went wrong" לא חוזר בגלל תלות חסרה.
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, StyleSheet, TouchableOpacity } from "react-native";
+import { ActivityIndicator, StyleSheet, TouchableOpacity } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
 import { API_BASE_URL } from "@/constants/api";
 import { useAuth } from "@/contexts/auth-context";
+import { Alert } from "@/lib/alert";
 import { useTheme } from "@/hooks/use-theme";
 
 // טעינה בטוחה של expo-audio (מחזיר null אם לא מותקן)

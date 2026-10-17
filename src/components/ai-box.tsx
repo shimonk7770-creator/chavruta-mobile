@@ -12,10 +12,12 @@ import { useAuth } from "@/contexts/auth-context";
 import { useTheme } from "@/hooks/use-theme";
 import type { AiAnswer } from "@/types/chavruta";
 
-type AiState =
+export type AiSource = { n: number; title: string; groupId: string; groupName?: string };
+
+export type AiState =
   | { status: "idle" }
   | { status: "loading" }
-  | { status: "done"; answer: string; disclaimer: string }
+  | { status: "done"; answer: string; disclaimer: string; sources?: AiSource[] }
   | { status: "error"; message: string };
 
 export function useAi() {
@@ -27,8 +29,8 @@ export function useAi() {
     async (path: string, body?: unknown) => {
       setState({ status: "loading" });
       try {
-        const data = await authedFetch<AiAnswer>(path, { method: "POST", body: body ?? {} });
-        setState({ status: "done", answer: data.answer, disclaimer: data.disclaimer ?? "" });
+        const data = await authedFetch<AiAnswer & { sources?: AiSource[] }>(path, { method: "POST", body: body ?? {} });
+        setState({ status: "done", answer: data.answer, disclaimer: data.disclaimer ?? "", sources: data.sources });
       } catch (error) {
         setState({ status: "error", message: error instanceof Error ? error.message : "אירעה שגיאה. נסו שוב." });
       }
@@ -57,6 +59,15 @@ export function AiAnswerBox({ state }: { state: AiState }) {
       {state.status === "done" ? (
         <>
           <ThemedText style={styles.answer}>{state.answer}</ThemedText>
+          {state.sources && state.sources.length ? (
+            <View style={{ gap: 2 }}>
+              {state.sources.map((src) => (
+                <ThemedText key={src.n} type="small" themeColor="textSecondary" style={styles.disclaimer}>
+                  [{src.n}] {src.title}{src.groupName ? ` (${src.groupName})` : ""}
+                </ThemedText>
+              ))}
+            </View>
+          ) : null}
           {state.disclaimer ? (
             <ThemedText type="small" themeColor="textSecondary" style={styles.disclaimer}>
               {state.disclaimer}
@@ -69,7 +80,7 @@ export function AiAnswerBox({ state }: { state: AiState }) {
 }
 
 // שורת שאלה ל-AI: שדה טקסט + כפתור "שאל". השאלה נשלחת ל-askPath עם { question }
-export function AiAskRow({ askPath, placeholder }: { askPath: string; placeholder: string }) {
+export function AiAskRow({ askPath, placeholder, extraBody }: { askPath: string; placeholder: string; extraBody?: Record<string, unknown> }) {
   const theme = useTheme();
   const { state, run, isLoading } = useAi();
   const [question, setQuestion] = useState("");
@@ -86,12 +97,12 @@ export function AiAskRow({ askPath, placeholder }: { askPath: string; placeholde
           onChangeText={setQuestion}
           maxLength={500}
           returnKeyType="send"
-          onSubmitEditing={() => canSend && run(askPath, { question: question.trim() })}
+          onSubmitEditing={() => canSend && run(askPath, { ...extraBody, question: question.trim() })}
         />
         <TouchableOpacity
           style={[styles.askButton, { backgroundColor: theme.secondary }, !canSend && styles.disabled]}
           disabled={!canSend}
-          onPress={() => run(askPath, { question: question.trim() })}>
+          onPress={() => run(askPath, { ...extraBody, question: question.trim() })}>
           <ThemedText style={styles.askButtonText}>שאל</ThemedText>
         </TouchableOpacity>
       </View>
